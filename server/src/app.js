@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth.routes.js';
+import patientsRouter from './routes/patients.routes.js';
+import exercisesRouter from './routes/exercises.routes.js';
+import plansRouter from './routes/plans.routes.js';
 
 dotenv.config();
 
@@ -20,6 +23,9 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRouter);
+app.use('/api/patients', patientsRouter);
+app.use('/api/exercises', exercisesRouter);
+app.use('/api/plans', plansRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
