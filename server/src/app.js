@@ -5,6 +5,9 @@ import authRouter from './routes/auth.routes.js';
 import patientsRouter from './routes/patients.routes.js';
 import exercisesRouter from './routes/exercises.routes.js';
 import plansRouter from './routes/plans.routes.js';
+import patientRouter from './routes/patient.routes.js';
+import logsRouter from './routes/logs.routes.js';
+import progressRouter from './routes/progress.routes.js';
 
 dotenv.config();
 
@@ -26,6 +29,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/patients', patientsRouter);
 app.use('/api/exercises', exercisesRouter);
 app.use('/api/plans', plansRouter);
+app.use('/api/patient', patientRouter);
+app.use('/api/logs', logsRouter);
+app.use('/api/progress', progressRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
