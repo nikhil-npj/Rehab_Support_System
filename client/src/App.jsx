@@ -6,6 +6,7 @@ import Signup from './pages/Signup';
 import PatientDashboard from './pages/PatientDashboard';
 import PhysioDashboard from './pages/PhysioDashboard';
 import PatientDetailPage from './pages/PatientDetailPage';
+import InsightsReviewPage from './pages/InsightsReviewPage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/patient/dashboard" element={<PatientDashboard />} />
         <Route path="/physio/dashboard" element={<PhysioDashboard />} />
         <Route path="/physio/patients/:id" element={<PatientDetailPage />} />
+        <Route path="/physio/insights" element={<InsightsReviewPage />} />
       </Routes>
     </Router>
   );

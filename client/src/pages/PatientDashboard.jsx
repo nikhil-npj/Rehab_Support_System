@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import api from '../services/api';
+import ActivityCalendar from '../components/ActivityCalendar';
 import {
   LineChart,
   Line,
@@ -491,6 +492,11 @@ function TodaysLogTab({ planData, todayLog, onSubmitSuccess }) {
 function MyProgressTab() {
   const [progressData, setProgressData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    return new Date().toISOString().split('T')[0].substring(0, 7);
+  });
+  const [calendarLogs, setCalendarLogs] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(true);
 
   const fetchProgress = useCallback(async () => {
     try {
@@ -503,9 +509,25 @@ function MyProgressTab() {
     }
   }, []);
 
+  const fetchCalendarLogs = useCallback(async (monthStr) => {
+    setCalendarLoading(true);
+    try {
+      const res = await api.get(`/logs/calendar?month=${monthStr}`);
+      setCalendarLogs(res.data || []);
+    } catch (err) {
+      console.error('Error fetching calendar logs:', err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProgress();
   }, [fetchProgress]);
+
+  useEffect(() => {
+    fetchCalendarLogs(currentMonth);
+  }, [currentMonth, fetchCalendarLogs]);
 
   if (loading) return <Spinner message="Loading your progress..." />;
 
@@ -548,6 +570,25 @@ function MyProgressTab() {
         <StatCard label="Avg Recovery" value={`${avgRecovery}`} sub="Last 7 days (out of 100)" color="teal" />
         <StatCard label="Avg Adherence" value={`${avgAdherence}%`} sub="Last 7 days" color="indigo" />
         <StatCard label="Total Sessions" value={totalSessions} sub="Days logged" color="amber" />
+      </div>
+
+      {/* Activity Calendar Section */}
+      <div className="flex justify-center">
+        {calendarLoading ? (
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 w-full max-w-sm flex items-center justify-center text-slate-400 min-h-[250px] shadow-sm">
+            <svg className="animate-spin h-5 w-5 text-teal-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span>Loading calendar...</span>
+          </div>
+        ) : (
+          <ActivityCalendar
+            logs={calendarLogs}
+            month={currentMonth}
+            onMonthChange={setCurrentMonth}
+          />
+        )}
       </div>
 
       {/* Recovery Score Chart */}
@@ -613,12 +654,84 @@ function MyProgressTab() {
   );
 }
 
+// ─── Tab 4: Insights ────────────────────────────────────────────────────────
+
+function InsightsTab() {
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/insights/approved')
+      .then((res) => setInsights(res.data))
+      .catch((err) => console.error('Error fetching insights:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <Spinner message="Loading insights..." />;
+  }
+
+  if (insights.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+        <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-teal-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 9v.906a2.25 2.25 0 0 1-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 0 0 1.183 1.981l6.478 3.488m8.839 2.51-4.66-2.51m0 0-1.023-.55a2.25 2.25 0 0 0-2.134 0l-1.022.55m0 0-4.661 2.51m16.5 1.615a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V8.844a2.25 2.25 0 0 1 1.183-1.981l7.5-4.04a2.25 2.25 0 0 1 2.134 0l7.5 4.04a2.25 2.25 0 0 1 1.183 1.98V19.5Z" />
+          </svg>
+        </div>
+        <p className="text-base font-medium text-slate-500 text-center">No messages yet</p>
+        <p className="text-sm text-center max-w-xs">
+          Your physiotherapist will send you updates as you progress through your rehabilitation.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-6">
+        <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 9v.906a2.25 2.25 0 0 1-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 0 0 1.183 1.981l6.478 3.488m8.839 2.51-4.66-2.51m0 0-1.023-.55a2.25 2.25 0 0 0-2.134 0l-1.022.55m0 0-4.661 2.51m16.5 1.615a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V8.844a2.25 2.25 0 0 1 1.183-1.981l7.5-4.04a2.25 2.25 0 0 1 2.134 0l7.5 4.04a2.25 2.25 0 0 1 1.183 1.98V19.5Z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-800">Messages from Your Physiotherapist</h3>
+          <p className="text-xs text-slate-400">{insights.length} message{insights.length !== 1 ? 's' : ''}</p>
+        </div>
+      </div>
+
+      {insights.map((insight) => {
+        const date = new Date(insight.created_at).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'long', day: 'numeric',
+        });
+        return (
+          <div
+            key={insight.id}
+            className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200"
+            style={{ borderLeft: '4px solid #0d9488' }}
+          >
+            <div className="px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-slate-400 font-medium">{date}</p>
+                <span className="text-xs text-slate-400 italic">From your physiotherapist</span>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{insight.final_content}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'plan', label: 'My Plan' },
   { id: 'log', label: "Today's Log" },
   { id: 'progress', label: 'My Progress' },
+  { id: 'insights', label: 'Insights' },
 ];
 
 export default function PatientDashboard() {
@@ -779,6 +892,7 @@ export default function PatientDashboard() {
           />
         )}
         {activeTab === 'progress' && <MyProgressTab />}
+        {activeTab === 'insights' && <InsightsTab />}
       </main>
 
       <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400 bg-white">

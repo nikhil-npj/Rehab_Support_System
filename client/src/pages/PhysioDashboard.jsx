@@ -27,6 +27,7 @@ export default function PhysioDashboard() {
   const [patientsLoading, setPatientsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showAddPatient, setShowAddPatient] = useState(false);
+  const [pendingInsightsCount, setPendingInsightsCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -67,6 +68,10 @@ export default function PhysioDashboard() {
   useEffect(() => {
     if (profile) {
       fetchPatients();
+      // Fetch pending insights count for badge
+      api.get('/insights/pending')
+        .then((res) => setPendingInsightsCount(res.data.length))
+        .catch(() => {});
     }
   }, [profile, fetchPatients]);
 
@@ -122,6 +127,21 @@ export default function PhysioDashboard() {
             </div>
 
             <div className="flex items-center gap-4">
+              <Link
+                to="/physio/insights"
+                id="review-queue-link"
+                className="relative inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-teal-600 px-3 py-1.5 hover:bg-teal-50 rounded-lg transition-colors duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                </svg>
+                <span className="hidden sm:inline">Review Queue</span>
+                {pendingInsightsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {pendingInsightsCount > 9 ? '9+' : pendingInsightsCount}
+                  </span>
+                )}
+              </Link>
               <span className="text-sm font-medium text-slate-600">{profile?.name}</span>
               <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">
                 Physiotherapist

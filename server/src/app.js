@@ -8,6 +8,7 @@ import plansRouter from './routes/plans.routes.js';
 import patientRouter from './routes/patient.routes.js';
 import logsRouter from './routes/logs.routes.js';
 import progressRouter from './routes/progress.routes.js';
+import insightsRouter from './routes/insights.routes.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/api/plans', plansRouter);
 app.use('/api/patient', patientRouter);
 app.use('/api/logs', logsRouter);
 app.use('/api/progress', progressRouter);
+app.use('/api/insights', insightsRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -147,4 +147,79 @@ router.get('/today', requireAuth, requireRole('patient'), async (req, res) => {
   }
 });
 
+/**
+ * GET /api/logs/calendar?month=YYYY-MM&patient_profile_id=...
+ * Protected (both patient and physio can call this)
+ */
+router.get('/calendar', requireAuth, async (req, res) => {
+  const { month, patient_profile_id } = req.query;
+
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'month parameter is required and must be in YYYY-MM format' });
+  }
+
+  try {
+    const userId = req.user.id;
+
+    // Determine user role
+    const { data: profile, error: roleErr } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (roleErr || !profile) {
+      return res.status(403).json({ error: 'Forbidden: Profile not found' });
+    }
+
+    let patientProfileId = patient_profile_id;
+
+    if (profile.role === 'patient') {
+      // Patients can only view their own logs
+      const { data: patientProfile, error: ppError } = await getPatientProfile(userId);
+      if (ppError) return res.status(400).json({ error: ppError.message });
+      if (!patientProfile) return res.status(404).json({ error: 'Patient profile not found' });
+      patientProfileId = patientProfile.id;
+    } else if (profile.role === 'physio') {
+      // Physios must pass patient_profile_id
+      if (!patientProfileId) {
+        return res.status(400).json({ error: 'patient_profile_id is required for physiotherapists' });
+      }
+    } else {
+      return res.status(403).json({ error: 'Forbidden: Invalid role' });
+    }
+
+    // Parse month to compute range: from YYYY-MM-01 to first day of next month
+    const [year, monthNum] = month.split('-');
+    const startDate = `${year}-${monthNum}-01`;
+    
+    let nextYear = parseInt(year, 10);
+    let nextMonthVal = parseInt(monthNum, 10) + 1;
+    if (nextMonthVal > 12) {
+      nextMonthVal = 1;
+      nextYear += 1;
+    }
+    const nextMonthStr = String(nextMonthVal).padStart(2, '0');
+    const endDate = `${nextYear}-${nextMonthStr}-01`;
+
+    const { data: logs, error: logsError } = await supabase
+      .from('daily_logs')
+      .select('log_date, adherence_score')
+      .eq('patient_profile_id', patientProfileId)
+      .gte('log_date', startDate)
+      .lt('log_date', endDate)
+      .order('log_date', { ascending: true });
+
+    if (logsError) {
+      console.error('Error fetching calendar logs:', logsError);
+      return res.status(400).json({ error: logsError.message });
+    }
+
+    return res.json(logs || []);
+  } catch (err) {
+    console.error('Error in GET /calendar:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 export default router;

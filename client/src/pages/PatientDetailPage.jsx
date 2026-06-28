@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import CreatePlanModal from './CreatePlanModal';
+import ActivityCalendar from '../components/ActivityCalendar';
 
 const INJURY_LABELS = {
   ACL: 'ACL Tear / Reconstruction',
@@ -52,6 +53,31 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightMsg, setInsightMsg] = useState(null); // { type: 'success'|'error', text: string }
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    return new Date().toISOString().split('T')[0].substring(0, 7);
+  });
+  const [calendarLogs, setCalendarLogs] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(true);
+
+  const fetchCalendarLogs = async (monthStr, patientProfileId) => {
+    setCalendarLoading(true);
+    try {
+      const res = await api.get(`/logs/calendar?month=${monthStr}&patient_profile_id=${patientProfileId}`);
+      setCalendarLogs(res.data || []);
+    } catch (err) {
+      console.error('Error fetching calendar logs:', err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (data?.patient?.id) {
+      fetchCalendarLogs(currentMonth, data.patient.id);
+    }
+  }, [currentMonth, data?.patient?.id]);
 
   const fetchPatient = async () => {
     try {
@@ -66,6 +92,25 @@ export default function PatientDetailPage() {
       setErrorMsg(err.response?.data?.error || 'Failed to load patient');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateInsight = async () => {
+    if (!data?.patient?.id) return;
+    setInsightLoading(true);
+    setInsightMsg(null);
+    try {
+      await api.post('/insights/generate', { patient_profile_id: data.patient.id });
+      setInsightMsg({ type: 'success', text: 'Insight generated and sent to review queue ✓' });
+      setTimeout(() => {
+        navigate('/physio/insights');
+      }, 1000);
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Failed to generate insight. Please try again.';
+      setInsightMsg({ type: 'error', text: msg });
+    } finally {
+      setInsightLoading(false);
+      setTimeout(() => setInsightMsg(null), 6000);
     }
   };
 
@@ -166,6 +211,26 @@ export default function PatientDetailPage() {
             </div>
           </div>
 
+          {/* Activity Calendar Section */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
+            <h2 className="text-base font-bold text-slate-800 mb-4">Patient Activity Calendar</h2>
+            {calendarLoading ? (
+              <div className="flex items-center justify-center py-10 text-slate-400">
+                <svg className="animate-spin h-5 w-5 text-teal-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Loading activity calendar...</span>
+              </div>
+            ) : (
+              <ActivityCalendar
+                logs={calendarLogs}
+                month={currentMonth}
+                onMonthChange={setCurrentMonth}
+              />
+            )}
+          </div>
+
           {/* Rehab Plan section */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -240,6 +305,56 @@ export default function PatientDetailPage() {
                 </div>
               </div>
             )}
+          </div>
+          {/* Generate AI Insight Section */}
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <div className="bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-200 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                  </svg>
+                </div>
+                <div className="flex-grow">
+                  <h3 className="text-sm font-bold text-teal-900 mb-0.5">AI-Powered Insight</h3>
+                  <p className="text-xs text-teal-700 mb-4">Analyze the last 14 days of patient data and generate a clinical summary for your review.</p>
+
+                  {insightMsg && (
+                    <div className={`mb-3 px-4 py-3 rounded-xl text-sm font-medium ${
+                      insightMsg.type === 'success'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-rose-100 text-rose-800 border border-rose-200'
+                    }`}>
+                      {insightMsg.text}
+                    </div>
+                  )}
+
+                  <button
+                    id="generate-ai-insight-btn"
+                    onClick={handleGenerateInsight}
+                    disabled={insightLoading}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors duration-200"
+                  >
+                    {insightLoading ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Analyzing patient data...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                        </svg>
+                        Generate AI Insight
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </main>
 
